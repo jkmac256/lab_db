@@ -5,7 +5,7 @@ from utils import get_equipment, search_equipment, update_equipment, add_equipme
 import datetime
 import requests
 
-API_URL = "http://localhost:8000"
+API_URL = "https://medical-lab-backend-9s2l.onrender.com"
 
 def auth_header():
     token = st.session_state.get("token", "")
