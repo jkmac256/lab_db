@@ -1,0 +1,19 @@
+[server]
+headless = true
+port = 8501
+enableCORS = true
+
+[theme]
+base = "light"
+primaryColor = "#2563EB"  # A nice blue for buttons and highlights
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#000000"
+font = "sans serif"
+
+[client]
+showSidebarNavigation = true
+
+[general]
+email = "your.email@example.com"
+

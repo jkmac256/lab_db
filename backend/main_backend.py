@@ -18,3 +18,9 @@ app.include_router(equipment.router)
 app.include_router(users.router)
 app.include_router(admin.router)
 app.include_router(patients.router)
+
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main_backend:app", host="0.0.0.0", port=8000)
