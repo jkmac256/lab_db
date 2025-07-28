@@ -10,7 +10,7 @@ from sqlalchemy import or_
 SECRET_KEY = os.getenv("SECRET_KEY", "your_default_secret_key")
 ALGORITHM = "HS256"
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")  # must match your login route!
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")  
 
 # dependencies.py
 
@@ -45,3 +45,25 @@ def require_role(role: str):
             )
         return user
     return role_checker
+
+
+def get_current_active_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    credentials_exception = HTTPException(
+        status_code=401, detail="Could not validate credentials"
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    user = db.query(User).filter(User.full_name == username).first()
+    if user is None:
+        raise credentials_exception
+
+    return user

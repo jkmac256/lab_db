@@ -1,5 +1,3 @@
-# backend/routes/users.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
@@ -9,22 +7,41 @@ from schemas import UserCreate, UserOut, UserDetailOut, UserUpdate
 from routes.auth import get_password_hash 
 from typing import Dict, Any, List, Optional
 
-
-
 router = APIRouter(prefix="/users", tags=["Users"])
 
+
 @router.get("/technicians/")
-def get_technicians(db: Session = Depends(get_db)):
-    return db.query(models.User).filter(models.User.role.ilike("TECHNICIAN")).all()
+def get_technicians(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    return (
+        db.query(models.User)
+        .filter(models.User.role.ilike("TECHNICIAN"))
+        .filter(models.User.laboratory_id == current_user.laboratory_id)
+        .all()
+    )
 
 
 @router.get("/doctors/")
-def get_doctors(db: Session = Depends(get_db)):
-    return db.query(models.User).filter_by(role="doctor").all()
+def get_doctors(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    return (
+        db.query(models.User)
+        .filter(models.User.role.ilike("DOCTOR"))
+        .filter(models.User.laboratory_id == current_user.laboratory_id)
+        .all()
+    )
 
 
-@router.post("/create", response_model=UserOut, dependencies=[Depends(require_role("admin"))])
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+@router.post("/create", response_model=UserOut, dependencies=[Depends(require_role("ADMIN"))])
+def create_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     existing_user = db.query(models.User).filter(models.User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already exists.")
@@ -40,7 +57,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         full_name=user.full_name,
         email=user.email,
         password_hash=hashed_password,
-        role=user.role.upper()
+        role=user.role.upper(),
+        laboratory_id=current_user.laboratory_id  # ✅ link to same lab
     )
 
     db.add(new_user)
@@ -50,10 +68,17 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{user_id}", response_model=Dict[str, Any])
-def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
+def get_user_by_id(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    if user.laboratory_id != current_user.laboratory_id:
+        raise HTTPException(status_code=403, detail="Access denied: different lab")
 
     user_data = {
         "id": user.id,
@@ -62,28 +87,24 @@ def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
         "role": user.role,
     }
 
-    # Get patients that have test requests
-    patients = (
-        db.query(models.Patient)
-        .join(models.TestRequest)
-        .filter(models.TestRequest.doctor_id == user.id)
-        .all()
-        if user.role.upper() == "DOCTOR"
-        else []
-    )
-
-    user_data["patients"] = [
-        {
-            "id": p.id,
-            "full_name": p.full_name,
-            "dob": str(p.date_of_birth),
-            "gender": p.gender,
-            "medical_records": p.medical_records
-        }
-        for p in patients
-    ]
-
     if user.role.upper() == "DOCTOR":
+        patients = (
+            db.query(models.Patient)
+            .join(models.TestRequest)
+            .filter(models.TestRequest.doctor_id == user.id)
+            .all()
+        )
+        user_data["patients"] = [
+            {
+                "id": p.id,
+                "full_name": p.full_name,
+                "dob": str(p.date_of_birth),
+                "gender": p.gender,
+                "medical_records": p.medical_records
+            }
+            for p in patients
+        ]
+
         requests = db.query(models.TestRequest).filter(models.TestRequest.doctor_id == user.id).all()
         user_data["test_requests"] = [
             {
@@ -111,43 +132,31 @@ def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
     return user_data
 
 
-# Get all users with optional role filter (admin only)
 @router.get("/all/", response_model=List[UserOut], dependencies=[Depends(require_role("ADMIN"))])
-def get_all_users(role: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(models.User)
+def get_all_users(
+    role: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    query = db.query(models.User).filter(models.User.laboratory_id == current_user.laboratory_id)
+
     if role:
         query = query.filter(models.User.role.ilike(role))
+
     return query.all()
 
-# Get single user by ID with extended info (admin only)
-@router.get("/{user_id}", response_model=UserDetailOut, dependencies=[Depends(require_role("ADMIN"))])
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
-    # Add extra data if doctor: patients worked on
-    patients = []
-    if user.role.upper() == "DOCTOR":
-        # Assuming you have a way to get patients for this doctor via test requests
-        patients_query = (
-            db.query(models.Patient)
-            .join(models.TestRequest, models.TestRequest.patient_id == models.Patient.id)
-            .filter(models.TestRequest.doctor_id == user.id)
-            .distinct()
-        )
-        patients = patients_query.all()
-
-    return UserDetailOut.from_orm(user).copy(update={"patients": patients})
-
-# Update user info (admin only)
 @router.put("/{user_id}", response_model=UserOut, dependencies=[Depends(require_role("ADMIN"))])
-def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+def update_user(
+    user_id: int,
+    user_update: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if not user or user.laboratory_id != current_user.laboratory_id:
+        raise HTTPException(status_code=404, detail="User not found or access denied")
 
-    # Update fields
     if user_update.full_name:
         user.full_name = user_update.full_name
     if user_update.email:
@@ -159,31 +168,43 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get
     db.refresh(user)
     return user
 
-# Delete user (admin only)
+
 @router.delete("/{user_id}", dependencies=[Depends(require_role("ADMIN"))])
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if not user or user.laboratory_id != current_user.laboratory_id:
+        raise HTTPException(status_code=404, detail="User not found or access denied")
+
     db.delete(user)
     db.commit()
     return {"detail": "User deleted successfully"}
 
-# Get test requests made by doctor (doctor id param)
+
 @router.get("/doctor/test-requests/{doctor_id}", dependencies=[Depends(require_role("ADMIN"))])
-def get_test_requests_by_doctor(doctor_id: int, db: Session = Depends(get_db)):
+def get_test_requests_by_doctor(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    doctor = db.query(models.User).filter(models.User.id == doctor_id).first()
+    if not doctor or doctor.laboratory_id != current_user.laboratory_id:
+        raise HTTPException(status_code=403, detail="Access denied: different lab")
     requests = db.query(models.TestRequest).filter(models.TestRequest.doctor_id == doctor_id).all()
     return requests
 
-# Get test results uploaded by technician (technician id param)
+
 @router.get("/technician/test-results/{tech_id}", dependencies=[Depends(require_role("ADMIN"))])
-def get_test_results_by_technician(tech_id: int, db: Session = Depends(get_db)):
+def get_test_results_by_technician(
+    tech_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    tech = db.query(models.User).filter(models.User.id == tech_id).first()
+    if not tech or tech.laboratory_id != current_user.laboratory_id:
+        raise HTTPException(status_code=403, detail="Access denied: different lab")
     results = db.query(models.TestResult).filter(models.TestResult.technician_id == tech_id).all()
     return results
-
-@router.get("/all/", dependencies=[Depends(require_role("ADMIN"))])
-def get_all_patients(db: Session = Depends(get_db)):
-    patients = db.query(models.Patient).all()
-    if not patients:
-        raise HTTPException(status_code=404, detail="No patients found")
-    return patients

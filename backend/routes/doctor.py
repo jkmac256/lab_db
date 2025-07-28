@@ -6,12 +6,12 @@ from datetime import datetime
 from database import get_db
 import models
 from dependencies import require_role
-import schemas  
+import schemas
 from typing import List
 from email.message import EmailMessage
 import os
 import smtplib
-from  email_sender import send_mailgun_email
+from email_sender import send_mailgun_email
 
 router = APIRouter(prefix="/doctor", tags=["Doctor"])
 
@@ -23,21 +23,26 @@ def submit_request(
     db: Session = Depends(get_db)
 ):
     patient = db.query(models.Patient).filter(
-        models.Patient.full_name == request.patient_name
+        models.Patient.full_name == request.patient_name,
+        models.Patient.laboratory_id == current_user.laboratory_id
     ).first()
 
     if not patient:
         patient = models.Patient(
             full_name=request.patient_name,
             date_of_birth=request.patient_dob,
-            gender=request.patient_gender,  
-            medical_records=""
+            gender=request.patient_gender,
+            medical_records="",
+            laboratory_id=current_user.laboratory_id  # 🔒 tie patient to doctor’s lab
         )
         db.add(patient)
         db.commit()
         db.refresh(patient)
 
-    equipment = db.query(models.Equipment).filter_by(name=request.equipment_name).first()
+    equipment = db.query(models.Equipment).filter_by(
+        name=request.equipment_name,
+        laboratory_id=current_user.laboratory_id  # 🔒 same lab only
+    ).first()
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
@@ -49,14 +54,14 @@ def submit_request(
         doctor_id=current_user.id,
         technician_id=request.technician_id,
         technician_message=request.technician_message,
-        message_for_doctor=None
+        message_for_doctor=None,
+        laboratory_id=current_user.laboratory_id  # 🔒 tie request to lab
     )
     db.add(tr)
     db.commit()
     db.refresh(tr)
 
     return tr
- 
 
 
 @router.get("/my-requests/")
@@ -67,7 +72,10 @@ def view_my_requests(
     requests = (
         db.query(models.TestRequest)
         .options(joinedload(models.TestRequest.equipment))
-        .filter_by(doctor_id=current_user.id)
+        .filter_by(
+            doctor_id=current_user.id,
+            laboratory_id=current_user.laboratory_id  # 🔒 only requests from doctor’s lab
+        )
         .all()
     )
 
@@ -94,7 +102,10 @@ def add_message_to_request(
     db: Session = Depends(get_db),
     current_user=Depends(require_role(["doctor", "technician"]))
 ):
-    request = db.query(models.TestRequest).filter(models.TestRequest.id == request_id).first()
+    request = db.query(models.TestRequest).filter(
+        models.TestRequest.id == request_id,
+        models.TestRequest.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+    ).first()
     if not request:
         raise HTTPException(status_code=404, detail="Test request not found")
 
@@ -113,9 +124,13 @@ def add_message_to_request(
 @router.get("/test-request/{request_id}/messages")
 def get_messages_for_request(
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role(["doctor", "technician"]))
 ):
-    request = db.query(models.TestRequest).filter(models.TestRequest.id == request_id).first()
+    request = db.query(models.TestRequest).filter(
+        models.TestRequest.id == request_id,
+        models.TestRequest.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+    ).first()
     if not request:
         raise HTTPException(status_code=404, detail="Test request not found")
 
@@ -126,8 +141,14 @@ def get_messages_for_request(
 
 
 @router.get("/", response_model=List[schemas.TechnicianOut])
-def get_all_technicians(db: Session = Depends(get_db)):
-    technicians = db.query(models.User).filter(models.User.role.ilike("LAB_TECHNICIAN")).all()
+def get_all_technicians(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("doctor"))
+):
+    technicians = db.query(models.User).filter(
+        models.User.role.ilike("LAB_TECHNICIAN"),
+        models.User.laboratory_id == current_user.laboratory_id  # 🔒 same lab only
+    ).all()
     return technicians
 
 
@@ -139,7 +160,10 @@ def get_test_results_for_doctor(
     results = (
         db.query(models.TestResult)
         .options(joinedload(models.TestResult.test_request).joinedload(models.TestRequest.patient))
-        .filter(models.TestResult.doctor_id == current_user.id)
+        .filter(
+            models.TestResult.doctor_id == current_user.id,
+            models.TestResult.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+        )
         .all()
     )
 
@@ -151,7 +175,7 @@ def get_test_results_for_doctor(
             seen=result.seen,
             patient_name=result.test_request.patient.full_name,
             test_type=result.test_request.test_type,
-            result_file_path=result.result_file_path  # ✅ Add this line
+            result_file_path=result.result_file_path
         )
         for result in results
     ]
@@ -163,10 +187,13 @@ def share_result(
     current_user=Depends(require_role("doctor")),
     db: Session = Depends(get_db)
 ):
-    # Make sure the result exists and belongs to this doctor
-    test_result = db.query(models.TestResult).filter(models.TestResult.id == payload.result_id).first()
+    test_result = db.query(models.TestResult).filter(
+        models.TestResult.id == payload.result_id,
+        models.TestResult.doctor_id == current_user.id,
+        models.TestResult.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+    ).first()
 
-    if not test_result or test_result.doctor_id != current_user.id:
+    if not test_result:
         raise HTTPException(status_code=404, detail="Test result not found or not owned")
 
     file_path = test_result.result_file_path
@@ -178,8 +205,6 @@ def share_result(
         msg["Subject"] = "Medical Lab Test Result"
         msg["From"] = os.getenv("SMTP_SENDER", "medicallabresults@gmail.com")
         msg["To"] = payload.recipient_email
-
-        # 🚫 Set Reply-To to discourage replies
         msg["Reply-To"] = "noreply.medicallabresults@gmail.com"
 
         msg.set_content(
@@ -193,7 +218,6 @@ def share_result(
 
         msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
 
-        # SMTP settings
         SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
         SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
         SMTP_USER = os.getenv("SMTP_USER")

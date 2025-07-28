@@ -1,6 +1,6 @@
 # backend/main.py
 from fastapi import FastAPI
-from routes import auth, doctor, technician, equipment, users, admin,patients
+from routes import auth, doctor, technician, equipment, users, admin,patients, superadmin
 from database import create_tables
 from dotenv import load_dotenv
 
@@ -18,6 +18,7 @@ app.include_router(equipment.router)
 app.include_router(users.router)
 app.include_router(admin.router)
 app.include_router(patients.router)
+app.include_router(superadmin.router)
 
 
 

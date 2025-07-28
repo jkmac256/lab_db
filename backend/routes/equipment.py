@@ -1,5 +1,3 @@
-# backend/routes/equipment.py
-
 from fastapi import APIRouter, Depends, HTTPException, Form, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List
@@ -8,7 +6,7 @@ from datetime import datetime
 from models import Equipment, User
 from schemas import EquipmentCreate, EquipmentOut, EquipmentUpdate
 from database import get_db
-from dependencies import get_current_user, require_role
+from dependencies import get_current_user
 
 router = APIRouter(prefix="/equipment", tags=["Equipment"])
 
@@ -19,7 +17,6 @@ def add_equipment_json(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 🔒 Check if user is a technician
     if current_user.role != "LAB_TECHNICIAN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -32,7 +29,8 @@ def add_equipment_json(
         description=payload.description,
         is_available=True,
         last_serviced=datetime.utcnow(),
-        added_by_id=current_user.id   # ✅ This is the missing line
+        added_by_id=current_user.id,
+        laboratory_id=current_user.laboratory_id  # ✅ enforce lab link
     )
     db.add(eq)
     db.commit()
@@ -49,7 +47,6 @@ def add_equipment_form(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 🔒 Check if user is a technician
     if current_user.role != "LAB_TECHNICIAN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -62,35 +59,48 @@ def add_equipment_form(
         description=description,
         is_available=True,
         last_serviced=datetime.utcnow(),
-        added_by_id=current_user.id
+        added_by_id=current_user.id,
+        laboratory_id=current_user.laboratory_id  # ✅ enforce lab link
     )
     db.add(eq)
     db.commit()
     db.refresh(eq)
     return eq
 
-# --- List all equipment ---
+
+# --- List all equipment in user lab ---
 @router.get("/", response_model=List[EquipmentOut])
 def list_equipment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(Equipment).options(joinedload(Equipment.added_by)).all()
+    return (
+        db.query(Equipment)
+        .options(joinedload(Equipment.added_by))
+        .filter(Equipment.laboratory_id == current_user.laboratory_id)  # ✅ only this lab
+        .all()
+    )
 
 
-# --- Get equipment by ID ---
+# --- Get equipment by ID (in lab) ---
 @router.get("/{equipment_id}", response_model=EquipmentOut)
 def get_equipment_by_id(
     equipment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    eq = db.query(Equipment).filter(Equipment.id == equipment_id).first()
+    eq = (
+        db.query(Equipment)
+        .filter(Equipment.id == equipment_id)
+        .filter(Equipment.laboratory_id == current_user.laboratory_id)  # ✅ only this lab
+        .first()
+    )
     if not eq:
         raise HTTPException(status_code=404, detail="Equipment not found")
     return eq
 
-# --- Update equipment ---
+
+# --- Update equipment (in lab) ---
 @router.put("/{equipment_id}", response_model=EquipmentOut)
 def update_equipment(
     equipment_id: int,
@@ -101,7 +111,12 @@ def update_equipment(
     if current_user.role not in ("ADMIN", "LAB_TECHNICIAN"):
         raise HTTPException(status_code=403, detail="Not authorized to update equipment.")
 
-    eq = db.query(Equipment).filter(Equipment.id == equipment_id).first()
+    eq = (
+        db.query(Equipment)
+        .filter(Equipment.id == equipment_id)
+        .filter(Equipment.laboratory_id == current_user.laboratory_id)  # ✅ only this lab
+        .first()
+    )
     if not eq:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
@@ -112,7 +127,9 @@ def update_equipment(
     db.refresh(eq)
     return eq
 
-@router.delete("/equipment/{equipment_id}")
+
+# --- Delete equipment (in lab) ---
+@router.delete("/{equipment_id}")
 def delete_equipment(
     equipment_id: int,
     db: Session = Depends(get_db),
@@ -121,11 +138,15 @@ def delete_equipment(
     if current_user.role not in ("ADMIN", "LAB_TECHNICIAN"):
         raise HTTPException(status_code=403, detail="Not authorized to delete equipment.")
 
-    equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
+    equipment = (
+        db.query(Equipment)
+        .filter(Equipment.id == equipment_id)
+        .filter(Equipment.laboratory_id == current_user.laboratory_id)  
+        .first()
+    )
     if not equipment:
         raise HTTPException(status_code=404, detail="Equipment not found")
 
     db.delete(equipment)
     db.commit()
     return {"detail": "Deleted successfully"}
-

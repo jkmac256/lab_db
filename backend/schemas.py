@@ -10,11 +10,13 @@ class RoleEnum(str, Enum):
     DOCTOR = "DOCTOR"
     LAB_TECHNICIAN = "LAB_TECHNICIAN"
     ADMIN = "ADMIN"
+    SUPER_ADMIN = "SUPER_ADMIN" 
 
 
 class UserLogin(BaseModel):
     full_name: str
     password: str
+    lab_name: Optional[str] = None  
 
     class Config:
         orm_mode = True
@@ -25,6 +27,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: RoleEnum
+    laboratory_id: int
 
 
 class UserOut(BaseModel):
@@ -32,6 +35,7 @@ class UserOut(BaseModel):
     full_name: str
     email: str
     role: str
+    laboratory_id: Optional[int]
 
     class Config:
         from_attributes = True
@@ -100,9 +104,6 @@ class TestRequestCreate(BaseModel):
     equipment_name: str
     technician_id: int
     technician_message: Optional[str] = None
-
-
-
 
 
 class UploadResultsSchema(BaseModel):
@@ -188,13 +189,12 @@ class ShareResultRequest(BaseModel):
     message: str | None = None
 
 
-
 class TestResultAdminOut(BaseModel):
     id: int
     test_request_id: int
-    uploaded_by: str           # Full name of the technician
-    result_data: str           # Result details (text)
-    uploaded_at: datetime      # Timestamp
+    uploaded_by: str           
+    result_data: str           
+    uploaded_at: datetime      
 
     class Config:
         from_attributes = True
@@ -224,6 +224,7 @@ class UserDetailOut(BaseModel):
     full_name: str
     email: str
     role: str
+    laboratory_id: int
 
     # Optional related data:
     test_requests: Optional[List[TestRequestSummary]] = None
@@ -237,6 +238,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str]
     email: Optional[EmailStr]
     role: Optional[str]
+    laboratory_id: Optional[int]
 
 class PatientOut(BaseModel):
     id: int
@@ -250,3 +252,17 @@ class PatientOut(BaseModel):
 
 class UserDetailOut(UserOut):
     patients: Optional[List[PatientOut]] = []        
+
+class LaboratoryCreate(BaseModel):
+    name: str
+    address: str
+    contact_email: str
+
+class LaboratoryOut(BaseModel):
+    id: int
+    name: str
+    address: str
+    contact_email: str
+
+    class Config:
+        from_attributes = True       

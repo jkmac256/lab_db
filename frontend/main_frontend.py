@@ -37,7 +37,7 @@ def auth_header():
 
 st.set_page_config(page_title="📊 Medical Lab System", layout="centered", page_icon="🚪")
 
-st_autorefresh(interval=3000, limit=None, key="refresh")
+#st_autorefresh(interval=3000, limit=None, key="refresh")
 
 def load_custom_css():
     st.markdown("""
@@ -73,6 +73,29 @@ if "role" not in st.session_state: st.session_state.role = None
 if "full_name" not in st.session_state: st.session_state.full_name = None
 if "page" not in st.session_state: st.session_state.page = "Home"
 
+def login_user(name, password, lab_name):
+    payload = {
+        "full_name": name,
+        "password": password,
+        "lab_name": lab_name  # ✅ always send it, can be None
+    }
+    res = requests.post(f"{API_URL}/auth/login", json=payload)
+
+    if res.status_code == 200:
+        return res.json()
+    else:
+        return {}
+
+
+def register_user(full_name, email, password, role, lab_id):
+    payload = {
+        "full_name": full_name,
+        "email": email,
+        "password": password,
+        "role": role,
+        "laboratory_id": lab_id  # ✅ Add this field
+    }
+    return requests.post(f"{API_URL}/auth/register", json=payload)
 
 
 # ------------------ DOCTOR DASHBOARD ------------------
@@ -320,7 +343,10 @@ def technician_dashboard():
 
 
 # ------------------ ADMIN DASHBOARD ------------------
+#admin_lab_id = st.session_state.get("lab_id")
+
 def admin_dashboard():
+    admin_lab_id = st.session_state.get("lab_id")
     headers = auth_header()
     st.title("👨‍⚕️ Admin Dashboard")
 
@@ -337,9 +363,9 @@ def admin_dashboard():
 
         # === Role Filter and Fetch Users ===
         role_filter = st.selectbox("Filter by Role", ["ALL", "DOCTOR", "LAB_TECHNICIAN", "PATIENT"])
-        user_url = f"{API_URL}/users/all/"
+        user_url = f"{API_URL}/users/all/?lab_id={admin_lab_id}"
         if role_filter != "ALL":
-            user_url += f"?role={role_filter}"
+            user_url += f"&role={role_filter}"
 
         users = requests.get(user_url, headers=headers).json()
         if not users:
@@ -421,7 +447,7 @@ def admin_dashboard():
                 del_resp = requests.delete(f"{API_URL}/users/{selected_user_id}", headers=headers)
                 if del_resp.status_code == 200:
                     st.success("✅ User deleted successfully.")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"❌ Failed to delete user: {del_resp.text}")
 
@@ -444,19 +470,22 @@ def admin_dashboard():
                         "email": new_email,
                         "password": new_password,
                         "role": new_role,
+                        "laboratory_id": admin_lab_id  # ✅ Pass the admin's lab ID here!
                     }
-                    add_resp = requests.post(f"{API_URL}/users/", headers=headers, json=payload)
+                    add_resp = requests.post(f"{API_URL}/users/create/", headers=headers, json=payload)
                     if add_resp.status_code in (200, 201):
                         st.success(f"✅ User {new_full_name} added successfully.")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(f"❌ Failed to add user: {add_resp.text}")
+
 
         
                                         # === TEST REQUESTS Page ===
     elif page == "🧪 Test Requests":
         st.subheader("🧪 All Test Requests")
-        reqs = requests.get(f"{API_URL}/admin/test-requests", headers=headers).json()
+        reqs = requests.get(f"{API_URL}/admin/test-requests?lab_id={admin_lab_id}", headers=headers).json()
+
 
         if not reqs:
             st.info("📭 No test requests found.")
@@ -499,7 +528,8 @@ def admin_dashboard():
     elif page == "📄 Test Results":
         st.subheader("📄 Test Results")
 
-        res = requests.get(f"{API_URL}/admin/test-results/", headers=headers)
+        res = requests.get(f"{API_URL}/admin/test-results/?lab_id={admin_lab_id}", headers=headers)
+
         try:
             results = res.json()
         except ValueError:
@@ -528,20 +558,67 @@ def admin_dashboard():
                                         # === EQUIPMENT PAGE===
     elif page == "🔬 Equipment":
         st.subheader("🔬 Equipment")
-        display_equipment_list(st.session_state.token, can_edit=True)
-
+        display_equipment_list(st.session_state.token, lab_id=admin_lab_id, can_edit=True)
 
 
                                  # === View All Patients in the System === 
     elif page == "🗂️ All Patients":
         st.markdown("### 🗂️ All Patients in the System")
-        patients_resp = requests.get(f"{API_URL}/patients/all/", headers=headers)
+        patients_resp = requests.get(f"{API_URL}/patients/all/?lab_id={admin_lab_id}", headers=headers)
         if patients_resp.status_code == 200:
             patients = patients_resp.json()
             st.dataframe(pd.DataFrame(patients) if patients else [])
         else:
             st.error("❌ Failed to fetch patients.")
             
+#..................superadmin...................
+def manage_labs():
+    st.subheader("🗂️ Manage Laboratories")
+
+    st.write("### ➕ Add a new laboratory")
+
+    name = st.text_input("Lab Name")
+    address = st.text_input("Address")
+    contact_email = st.text_input("Contact Email")
+
+    if st.button("Add Laboratory"):
+        if name:
+            payload = {
+                "name": name,
+                "address": address,
+                "contact_email": contact_email
+            }
+            res = requests.post(f"{API_URL}/superadmin/labs", json=payload)
+            if res.status_code == 200:
+                st.success("✅ Lab added successfully.")
+                st.rerun()  # ✅ Refresh to show new lab!
+            else:
+                st.error(f"❌ Failed to add: {res.text}")
+        else:
+            st.warning("Please enter at least a lab name.")
+
+    st.write("### 🗂️ Existing Laboratories:")
+
+    # ✅ Always check response status & .json()
+    res = requests.get(f"{API_URL}/superadmin/labs")
+    if res.status_code == 200:
+        labs = res.json()
+
+        if not labs:
+            st.info("No laboratories found.")
+        else:
+            for lab in labs:
+                st.write(f"- **{lab['name']}** | 📧 {lab.get('contact_email', 'N/A')} | 📍 {lab.get('address', 'N/A')}")
+                if st.button(f"❌ Delete {lab['name']}", key=f"delete_{lab['id']}"):
+                    delete_res = requests.delete(f"{API_URL}/superadmin/labs/{lab['id']}")
+                    if delete_res.status_code == 200:
+                        st.success("✅ Lab deleted.")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Failed to delete: {delete_res.text}")
+    else:
+        st.error(f"❌ Failed to load labs: {res.text}")
+
 
 
 # ------------------ MAIN APP ------------------
@@ -561,6 +638,8 @@ if st.session_state.token:
         technician_dashboard()
     elif st.session_state.role.lower() == "admin":
         admin_dashboard()
+    elif st.session_state.role == "SUPER_ADMIN":
+        manage_labs()    
 else:
     st.title("🔐 Welcome to MedLab System")
     login_tab, register_tab = st.tabs(["🔑 Login", "📝 Register"])
@@ -569,35 +648,49 @@ else:
         st.subheader("Login")
         name = st.text_input("Name", key="login_name")
         password = st.text_input("Password", type="password", key="login_password")
+        lab_name = st.text_input("Lab Name", key="login_lab_name")
+
         if st.button("Login", key="login_btn"):
             if name and password:
-                res = login_user(name, password)
+                res = login_user(name, password, lab_name)
 
-                # ✅ If login_user already returns a dictionary
                 if "access_token" in res and "user" in res:
                     st.session_state.token = res["access_token"]
-                    st.session_state.user = res["user"]  # ✅ This line must be added!
+                    st.session_state.user = res["user"]
                     st.session_state.role = res["user"]["role"]
                     st.session_state.full_name = res["user"]["full_name"]
                     st.success("✅ Login successful.")
                     st.rerun()
                 else:
                     st.error("❌ Login failed. Please check credentials.")
-
-
             else:
                 st.warning("Please fill in both fields.")
 
+
+
     def register_section():
         st.subheader("Register")
+
         full_name = st.text_input("Full Name", key="register_name")
         email = st.text_input("Email", key="register_email")
         password = st.text_input("Password", type="password", key="register_password")
         role = st.selectbox("Role", ["DOCTOR", "LAB_TECHNICIAN", "ADMIN"], key="register_role")
 
+        # ✅ Get available labs
+        labs_response = requests.get(f"{API_URL}/superadmin/labs")
+        labs = labs_response.json() if labs_response.status_code == 200 else []
+
+        lab_id = None
+        if labs:
+            lab_names = [f"{lab['name']} (ID: {lab['id']})" for lab in labs]
+            selected_lab = st.selectbox("Select Laboratory", lab_names, key="register_lab")
+            lab_id = next((lab['id'] for lab in labs if f"{lab['name']} (ID: {lab['id']})" == selected_lab), None)
+        else:
+            st.warning("⚠️ No laboratories available. Contact the Super Admin to add one.")
+
         if st.button("Register", key="register_btn"):
-            if full_name and email and password and role:
-                res = register_user(full_name, email, password, role)
+            if full_name and email and password and role and lab_id:
+                res = register_user(full_name, email, password, role, lab_id)
 
                 if res.status_code in (200, 201):
                     user_data = res.json()
@@ -607,7 +700,8 @@ else:
                 else:
                     st.error(f"❌ Registration failed: {res.text}")
             else:
-                st.warning("Please complete all fields to register.")
+                st.warning("Please complete all fields and select a lab to register.")
+
 
     with login_tab:
         login_section()

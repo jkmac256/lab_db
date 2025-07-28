@@ -17,19 +17,28 @@ def login_user(username: str, password: str):
 # ---------------------
 # ✅ EQUIPMENT
 # ---------------------
-def get_equipment(token):
+def get_equipment(token, lab_id=None):
     headers = {"Authorization": f"Bearer {token}"}
-    res = requests.get(f"{API_BASE_URL}/equipment/", headers=headers)
+    params = {}
+    if lab_id:
+        params["lab_id"] = lab_id
+
+    res = requests.get(f"{API_BASE_URL}/equipment/", headers=headers, params=params)
     if res.status_code == 200:
         return res.json()
     return []
 
-def search_equipment(token, query):
+def search_equipment(token, query, lab_id=None):
     headers = {"Authorization": f"Bearer {token}"}
-    res = requests.get(f"{API_BASE_URL}/equipment/equipment/?search={query}", headers=headers)
+    params = {"search": query}
+    if lab_id:
+        params["lab_id"] = lab_id
+
+    res = requests.get(f"{API_BASE_URL}/equipment/", headers=headers, params=params)
     if res.status_code == 200:
         return res.json()
     return []
+
 
 def add_equipment(token: str, data: dict):
     headers = {"Authorization": f"Bearer {token}"}
@@ -37,17 +46,6 @@ def add_equipment(token: str, data: dict):
 
 
 def update_equipment(token: str, equipment_id: int, update_data: dict):
-    """
-    Sends a PUT request to update equipment fields such as availability.
-
-    Args:
-        token (str): Bearer token of the logged-in user.
-        equipment_id (int): ID of the equipment to update.
-        update_data (dict): Fields to update (e.g., {"is_available": False}).
-
-    Returns:
-        Response object from the backend.
-    """
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"

@@ -13,9 +13,14 @@ def auth_header():
         return {"Authorization": f"Bearer {token}"}
     return {}
 
-def display_equipment_list(token, can_edit=False):
+def display_equipment_list(token, lab_id=None, can_edit=False):
     query = st.text_input("Search Equipment")
-    results = search_equipment(token, query) if query else get_equipment(token)
+
+    # If you have a search API that accepts lab_id too:
+    if query:
+        results = search_equipment(token, query, lab_id=lab_id)
+    else:
+        results = get_equipment(token, lab_id=lab_id)
 
     if results:
         for item in results:
@@ -39,7 +44,6 @@ def display_equipment_list(token, can_edit=False):
                 st.markdown(f"**🛠️ Last Serviced:** `{last_serviced or 'N/A'}`")
                 st.markdown(f"**✅ Available:** `{available}`")
 
-                # Editing + deleting only for lab techs/admin
                 if st.session_state.role in ["LAB_TECHNICIAN", "ADMIN"] and can_edit:
                     with st.form(key=f"edit_form_{equipment_id}"):
                         new_name = st.text_input("Name", value=name, key=f"edit_name_{equipment_id}")
@@ -72,7 +76,7 @@ def display_equipment_list(token, can_edit=False):
                         )
                         submitted = st.form_submit_button(f"🗑️ Confirm Delete '{name}'")
                         if submitted and confirm == "Yes":
-                            delete_url = f"{API_URL}/equipment/equipment/{equipment_id}"  # ✅ FIXED PATH
+                            delete_url = f"{API_URL}/equipment/{equipment_id}"
                             res = requests.delete(delete_url, headers=auth_header())
                             if res.status_code == 200:
                                 st.success("✅ Deleted successfully.")
@@ -81,6 +85,3 @@ def display_equipment_list(token, can_edit=False):
                                 st.error(f"❌ Failed to delete: {res.text}")
     else:
         st.info("📭 No equipment found.")
-
-
-

@@ -8,12 +8,8 @@ from dependencies import require_role, get_current_user
 from schemas import UploadResultsSchema, TestResultSchema
 import os, shutil
 from uuid import uuid4
-import shutil
 from typing import List
 from schemas import TechnicianOut
-from werkzeug.utils import secure_filename
-
-
 
 router = APIRouter(prefix="/technician", tags=["Technician"])
 UPLOAD_DIR = "uploaded_results"
@@ -29,6 +25,7 @@ def save_file(upload_file):
 
     return file_path
 
+
 @router.get("/pending-requests/")
 def get_pending_requests(
     current_user=Depends(require_role("lab_technician")),
@@ -37,8 +34,11 @@ def get_pending_requests(
     requests = (
         db.query(TestRequest)
         .options(joinedload(TestRequest.equipment))
-        .filter(TestRequest.technician_id == current_user.id)
-        .filter(TestRequest.status == RequestStatus.pending)  # ✅ Only pending
+        .filter(
+            TestRequest.technician_id == current_user.id,
+            TestRequest.status == RequestStatus.pending,
+            TestRequest.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+        )
         .all()
     )
 
@@ -65,13 +65,16 @@ def upload_result(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Fetch and validate test request
-    test_request = db.query(TestRequest).filter(TestRequest.id == request_id).first()
+    # Fetch and validate test request with lab scope
+    test_request = db.query(TestRequest).filter(
+        TestRequest.id == request_id,
+        TestRequest.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+    ).first()
     if not test_request:
-        raise HTTPException(status_code=404, detail="Test request not found")
+        raise HTTPException(status_code=404, detail="Test request not found or not in your lab")
 
     # Save uploaded file
-    upload_folder = os.path.abspath("uploaded_results")
+    upload_folder = os.path.abspath(UPLOAD_DIR)
     os.makedirs(upload_folder, exist_ok=True)
     filename = result_file.filename.replace(" ", "_")
     file_path = os.path.join(upload_folder, filename)
@@ -79,18 +82,19 @@ def upload_result(
     with open(file_path, "wb") as f:
         shutil.copyfileobj(result_file.file, f)
 
-    # Create TestResult
+    # Create TestResult tied to lab
     new_result = TestResult(
         request_id=request_id,
         technician_id=current_user.id,
         doctor_id=test_request.doctor_id,
         result_details=details,
         result_file_path=file_path,
-        seen=False
+        seen=False,
+        laboratory_id=current_user.laboratory_id  # 🔒 lab tied
     )
     db.add(new_result)
 
-    # ✅ Update test request status to "completed"
+    # Update test request status to completed
     test_request.status = RequestStatus.completed
 
     db.commit()
@@ -105,18 +109,29 @@ def upload_result(
 @router.get("/test-request/{request_id}/messages")
 def get_messages_for_request(
     request_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("lab_technician"))
 ):
-    request = db.query(TestRequest).filter(TestRequest.id == request_id).first()
+    request = db.query(TestRequest).filter(
+        TestRequest.id == request_id,
+        TestRequest.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+    ).first()
     if not request:
-        raise HTTPException(status_code=404, detail="Test request not found")
+        raise HTTPException(status_code=404, detail="Test request not found or not in your lab")
 
     return {
         "message_for_doctor": request.message_for_doctor,
         "technician_message": request.technician_message
     }
 
-@router.get("/technicians/", response_model=List[TechnicianOut])
-def get_all_technicians(db: Session = Depends(get_db)):
-    return db.query(User).filter(User.role.ilike("TECHNICIAN")).all()
 
+@router.get("/technicians/", response_model=List[TechnicianOut])
+def get_all_technicians(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("lab_technician"))
+):
+    technicians = db.query(User).filter(
+        User.role.ilike("LAB_TECHNICIAN"),
+        User.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped list
+    ).all()
+    return technicians
