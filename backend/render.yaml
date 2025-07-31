@@ -11,4 +11,4 @@ services:
           name: medical-lab-db
           property: connectionString
       - key: SECRET_KEY
-        value: your-secret-key-here
+        value: your_default_secret_key
