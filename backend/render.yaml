@@ -3,12 +3,12 @@ services:
     name: medical-lab-backend
     env: python
     region: oregon
+    pythonVersion: 3.12.13
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: "uvicorn main_backend:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: medical-lab-db
-          property: connectionString
+        value: postgresql://postgres:Mac@supabase1@db.omcidfuqjfciohudjujd.supabase.co:5432/postgres
       - key: SECRET_KEY
         value: your_default_secret_key
+      # Add other environment variables here as needed
