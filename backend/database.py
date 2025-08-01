@@ -14,3 +14,10 @@ Base = declarative_base()
 def create_tables():
     from models import Laboratory, User, Equipment, Patient, TestRequest, TestResult
     Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db: Session = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
