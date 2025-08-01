@@ -11,4 +11,7 @@ services:
         value: postgresql://postgres:Mac%40supabase1@db.omcidfuqjfciohudjujd.supabase.co:5432/postgres
       - key: SECRET_KEY
         value: your_default_secret_key
-      # Add other environment variables here as needed
+      - key: EMAIL_USER
+        value: medicallabresults@gmail.com
+      - key: EMAIL_PASSWORD
+        value: MedicalLab%40results1
