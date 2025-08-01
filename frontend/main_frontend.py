@@ -37,7 +37,7 @@ def auth_header():
 
 st.set_page_config(page_title="📊 Medical Lab System", layout="centered", page_icon="🚪")
 
-#st_autorefresh(interval=3000, limit=None, key="refresh")
+st_autorefresh(interval=3000, limit=None, key="refresh")
 
 def load_custom_css():
     st.markdown("""
