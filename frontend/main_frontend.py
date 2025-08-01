@@ -15,7 +15,7 @@ from utils import (
 )
 
 
-API_URL = "https://medical-lab-backend-9s2l.onrender.com"
+API_URL = "https://lab-db-i793.onrender.com"
 TIMEOUT = 300
 
 # Set your timeout limit in seconds (5 minutes = 300s)
