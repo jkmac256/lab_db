@@ -262,11 +262,15 @@ def technician_dashboard():
     if page == "📥 Pending Requests":
         st.subheader("📥 Pending Test Requests")
 
-        requests_data = requests.get(
-            f"{API_URL}/technicians/technician/pending-requests/",
-            headers=auth_header()
-        ).json()
+        response = requests.get(
+    f"{API_URL}/technicians/technician/pending-requests/",
+    headers=auth_header()
+    )
 
+    if response.status_code != 200:
+        st.error(f"❌ Failed to fetch test requests: {response.status_code} - {response.text}")
+    else:
+        requests_data = response.json()
         if not requests_data:
             st.info("📭 No test requests.")
         else:
@@ -279,6 +283,7 @@ def technician_dashboard():
                     **📅 Date**: {req['request_date']}  
                     **⚙️ Equipment**: {req.get('equipment_name', 'Unknown')}  
                     """)
+
                                           # Upload Result page#
     elif page == "📤 Upload Result":
         st.subheader("📤 Upload Test Result")
