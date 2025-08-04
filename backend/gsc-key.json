@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "lab-management-468009",
+  "private_key_id": "4c6e081a60f1f8e95e48a08003ac85e1279f5edc",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDJmjx4cJIbHGRk\nX7ledhuCHRNCOdQ5YYK46mHfri4jbj3ZVO5dUtzqf7jOqF0LvNvQ9kfsW9DFy/dL\n3BQUngUQL/mzx7ouDPuUQz0PmUU1qQfRHczdew/ND30buCIXcMN1L2MxyxIzBGfS\njCfCPZOkNGYRrBzqel1Pq1MdGjuoy6vfFZ/zVKekJ+tJA961wiKzpRK9fj0K/129\nwe0CFmRxQ3DplPXj1whPnLabYxve+BzDtSt3V/bSzpz+jMupjo44l4Q0bDmSFLuX\njsdsQIUUw5uqL9xzvQd2ChxqgzQh27PzAmHddjRv60FqwiFmJ9CPGneuVNese6Rh\nERoNA7n3AgMBAAECggEABCIAzllEbYDaAALEWo7iRnsRG4Dy/FAm7WKEqiC4emp2\nox9uGYSq2bXPlJD4A1cWTITX+ZzyPTPOuIPk9307zlalcE2OYAZNG/9633h9Zjm2\nWs+ZFQtCSipgnrJaJI/fueXES0+F6nzTIgpUgFNh1PJsCz2zhA0JH6p79DNG+NFW\nvgHfdg1QKpHJTo6SRE8oCe8prj5Ok9rKsPaX6VlpG6m7TbxZBKGm2ZGz0zkOTnRI\nyb8Poz2TmeD/k0oQpDq6mucUMyMr8/TqDdQhL868R1TY2y27WXA1RDt5Iwn/KjPl\nZZiVwhlMwlGkc6vVb+UjIhoGiG0oux4yCRbvHkuR8QKBgQDojlRn2oZqpKfMU7ax\n6XvBzw/u8rXnBaaPmrwVLGP9Zacfk+6LFDa9fX+P4Lp21CkEgSdGntzyCEeUJ2pV\n2VEa+bN9uzTywAAtZb7E/Y28VA9Oa4MiCP7t8KtxVuy+6ptMJ2Fs0cAZ6URYsGo6\n3YiwHGfDfkkH9T3pFT70whZqJwKBgQDd7ROjAhQIPSbHJVewTFZRcPo0AamYxt9S\nnRv4beHzwBbYiLAWNkx0giteAIRXAuJLObj6y90V2oO1a9RxwX9Q06xFUBUOZOwP\n6S3Z25xg5FAJyUfsZzTd5B8M64whJYTjXeCITbmPf8+ic5iSE+W4E/dGcRTVF/Uz\nAC3zIpcjsQKBgQCF0smtjanGGoRY5199l99YkuAXX+HfVHgZsTBEeuv7OJDocgdW\nT0aE2oAaenayxLnp1qyUTfzU5oDSN7BQQKMUg9aPJrh8bJJtjVwvHb1/P1wjg2jN\noCGbKOBvc1b/MiA1vX+p0DXcc0iaRMKMp0juFxp6++PoyW5b/5bf4ARoBwKBgGce\nZeV0bcJ2R7J5U4mDrwggquHHc/qdTd+hSQHibP9J3lO3D7sCd/wbD/OZ4eRcXrH9\nnEpMt+oToueFty00b+gqsv1x/Ja3pkiuXLPCK6OJ8vbZJCZgvlvsR9FFEdPFDz5m\nvJIZK4PWK7CcbeRSgodKH7gHi1qIy1JrXu5+wCPBAoGBANJch7VChfPUAoFCvpjk\nCJyPaJ8T9mQVDx2BS7+dzCkXtZwZz74sxaz3G/jFYaMAxWGwmn9Xob2/G1fRR8kp\nVMS6H/rCfU2Zm95dju9eFegKjNJWJIBK1LRxzBzBxfkHUrUmKhd59YKVpi0777an\nMZWlICqzIrDJlYcF/5K2ftQg\n-----END PRIVATE KEY-----\n",
+  "client_email": "lab-storage-uploader@lab-management-468009.iam.gserviceaccount.com",
+  "client_id": "114544325853459548145",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/lab-storage-uploader%40lab-management-468009.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
