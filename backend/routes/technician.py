@@ -1,13 +1,15 @@
 # backend/routes/technician.py
 
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from models import User, TestRequest, TestResult, RequestStatus
 from dependencies import get_current_user, require_role
 from google.cloud import storage
-import os, tempfile, uuid
-from typing import Optional
+import os, tempfile, shutil
+from uuid import uuid4
+from typing import Optional, List
+from schemas import TechnicianOut, UploadResultsSchema, TestResultSchema
 
 router = APIRouter(prefix="/technician", tags=["Technician"])
 
