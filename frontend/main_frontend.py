@@ -262,7 +262,7 @@ def technician_dashboard():
     if page == "📥 Pending Requests":
         st.subheader("📥 Pending Test Requests")
 
-            response = requests.get(
+        response = requests.get(
         f"{API_URL}/technicians/technician/pending-requests/",
         headers=auth_header()
         )
