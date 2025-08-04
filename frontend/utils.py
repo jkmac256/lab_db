@@ -1,6 +1,6 @@
 import requests
 
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "https://lab-db-i793.onrender.com"
 
 # ---------------------
 # ✅ LOGIN
