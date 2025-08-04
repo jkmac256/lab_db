@@ -3,11 +3,14 @@ from google.cloud import storage
 from google.oauth2 import service_account
 from fastapi import UploadFile
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+load_dotenv()
 
-CREDENTIALS_FILE = "backend/gcs_creds.json"  # path to your JSON credentials file
+
 BUCKET_NAME = "medicallab-results-buckect"  # your GCS bucket name
+GCS_CREDENTIALS_PATH = os.getenv("GCS_CREDENTIALS")
 
-credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_FILE)
+credentials = service_account.Credentials.from_service_account_file(GCS_CREDENTIALS_PATH)
 client = storage.Client(credentials=credentials)
 bucket = client.bucket(BUCKET_NAME)
 
