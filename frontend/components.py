@@ -5,7 +5,7 @@ from utils import get_equipment, search_equipment, update_equipment, add_equipme
 import datetime
 import requests
 
-API_URL = "https://medical-lab-backend-9s2l.onrender.com"
+API_URL = "https://lab-db-i793.onrender.com"
 
 def auth_header():
     token = st.session_state.get("token", "")
