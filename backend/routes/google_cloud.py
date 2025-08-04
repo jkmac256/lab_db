@@ -2,7 +2,7 @@ import os
 from google.cloud import storage
 from google.oauth2 import service_account
 from fastapi import UploadFile
-from datetime import datetime
+from datetime import datetime, timedelta
 
 CREDENTIALS_FILE = "backend/gcs_creds.json"  # path to your JSON credentials file
 BUCKET_NAME = "medicallab-results-buckect"  # your GCS bucket name
@@ -23,3 +23,23 @@ def upload_file_to_gcs(file: UploadFile, destination_folder: str) -> str:
         return f"gs://{BUCKET_NAME}/{filename}"
     except Exception as e:
         raise Exception(f"GCS upload failed: {e}")
+
+
+def generate_signed_url(blob_path: str, expiration_minutes: int = 30) -> str:
+    """
+    Generate a signed URL for securely downloading a GCS object.
+    
+    :param blob_path: Full path of the file in the bucket (e.g., "test-results/202508041234_file.pdf")
+    :param expiration_minutes: How long the signed URL should be valid for.
+    :return: Signed URL as a string
+    """
+    try:
+        blob = bucket.blob(blob_path)
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(minutes=expiration_minutes),
+            method="GET"
+        )
+        return url
+    except Exception as e:
+        raise Exception(f"Signed URL generation failed: {e}")
