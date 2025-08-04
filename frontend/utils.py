@@ -93,7 +93,7 @@ def get_my_requests(token):
 
 def get_my_results(token):
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{API_BASE_URL}/doctor/test-results/", headers=headers)
+    response = requests.get(f"{API_BASE_URL}/doctor/result-action/", headers=headers)
     return response.json() if response.status_code == 200 else []
 
 
