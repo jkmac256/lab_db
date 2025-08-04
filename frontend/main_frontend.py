@@ -19,14 +19,14 @@ API_URL = "https://lab-db-i793.onrender.com"
 TIMEOUT = 300
 
 # Set your timeout limit in seconds (5 minutes = 300s)
-"""if "last_activity" not in st.session_state:
+if "last_activity" not in st.session_state:
     st.session_state.last_activity = time.time()
 if time.time() - st.session_state.last_activity > TIMEOUT:
     st.warning("⏳ Session timed out due to inactivity. Please log in again.")
     if "token" in st.session_state:
         del st.session_state.token
     st.stop()
-st.session_state.last_activity = time.time()"""
+st.session_state.last_activity = time.time()
 
 
 def auth_header():
