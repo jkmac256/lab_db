@@ -10,7 +10,7 @@ import os, tempfile, shutil, json, tempfile
 from uuid import uuid4
 from typing import Optional, List
 from schemas import TechnicianOut, UploadResultsSchema, TestResultSchema
-from google_cloud import upload_file_to_gcs
+from routes.google_cloud import upload_file_to_gcs
 
 GCS_BUCKET_NAME = os.getenv("medicallab-results-bucket")  # ✅ Set this in your env
 
