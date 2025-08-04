@@ -262,27 +262,27 @@ def technician_dashboard():
     if page == "📥 Pending Requests":
         st.subheader("📥 Pending Test Requests")
 
-        response = requests.get(
-    f"{API_URL}/technicians/technician/pending-requests/",
-    headers=auth_header()
-    )
-
-    if response.status_code != 200:
-        st.error(f"❌ Failed to fetch test requests: {response.status_code} - {response.text}")
-    else:
-        requests_data = response.json()
-        if not requests_data:
-            st.info("📭 No test requests.")
+            response = requests.get(
+        f"{API_URL}/technicians/technician/pending-requests/",
+        headers=auth_header()
+        )
+    
+        if response.status_code != 200:
+            st.error(f"❌ Failed to fetch test requests: {response.status_code} - {response.text}")
         else:
-            for req in requests_data:
-                with st.expander(label=f"🧑 Patient: {req['patient_name']}", expanded=False):
-                    st.markdown(f"""
-                    **📄 Request ID**: {req['id']}  
-                    **🧑 Patient**: {req['patient_name']}  
-                    **🧪 Test Type**: {req['test_type']}  
-                    **📅 Date**: {req['request_date']}  
-                    **⚙️ Equipment**: {req.get('equipment_name', 'Unknown')}  
-                    """)
+            requests_data = response.json()
+            if not requests_data:
+                st.info("📭 No test requests.")
+            else:
+                for req in requests_data:
+                    with st.expander(label=f"🧑 Patient: {req['patient_name']}", expanded=False):
+                        st.markdown(f"""
+                        **📄 Request ID**: {req['id']}  
+                        **🧑 Patient**: {req['patient_name']}  
+                        **🧪 Test Type**: {req['test_type']}  
+                        **📅 Date**: {req['request_date']}  
+                        **⚙️ Equipment**: {req.get('equipment_name', 'Unknown')}  
+                        """)
 
                                           # Upload Result page#
     elif page == "📤 Upload Result":
