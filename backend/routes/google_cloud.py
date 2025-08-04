@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 from fastapi import UploadFile
 from datetime import datetime, timedelta
 
-CREDENTIALS_FILE = "backend/gcs_creds.json"  # path to your JSON credentials file
+CREDENTIALS_FILE = "backend\gcs_creds.json"  # path to your JSON credentials file
 BUCKET_NAME = "medicallab-results-buckect"  # your GCS bucket name
 
 credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_FILE)
