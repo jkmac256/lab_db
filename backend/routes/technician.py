@@ -31,15 +31,6 @@ def get_gcs_client():
 
     return storage.Client()
 
-@router.post("/upload-result/")
-def upload_result(file: UploadFile = File(...), current_user=Depends(...)):
-    try:
-        file_url = upload_file_to_gcs(file, destination_folder="test-results")
-        return {"message": "Uploaded successfully", "file_url": file_url}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.post("/upload_result/")
 def upload_result(
     request_id: int = Form(...),
@@ -57,25 +48,23 @@ def upload_result(
     if not test_request:
         raise HTTPException(status_code=404, detail="Test request not found or not in your lab")
 
-    # ✅ Upload file to GCS
+    # ✅ Upload to GCS privately
     try:
-        public_url = upload_file_to_gcs(result_file, request_id)
+        blob_path = upload_file_to_gcs(result_file, request_id, make_public=False)  # update this function!
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GCS upload failed: {str(e)}")
 
-    # ✅ Save result in DB
+    # ✅ Save only the blob path in the DB
     new_result = TestResult(
         request_id=request_id,
         technician_id=current_user.id,
         doctor_id=test_request.doctor_id,
         result_details=details,
-        result_file_path=public_url,
+        result_file_path=blob_path,  # NOT public URL
         seen=False,
         laboratory_id=current_user.laboratory_id
     )
     db.add(new_result)
-
-    # ✅ Update test request status
     test_request.status = RequestStatus.completed
 
     db.commit()
@@ -84,7 +73,7 @@ def upload_result(
     return {
         "message": "Result uploaded and request marked as completed",
         "result_id": new_result.id,
-        "file_url": public_url
+        "file_path": blob_path
     }
 
 @router.get("/pending-requests/")
