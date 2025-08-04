@@ -2,14 +2,23 @@ import os
 from google.cloud import storage
 from google.oauth2 import service_account
 from fastapi import UploadFile
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv()
 
+# Your GCS bucket name
+BUCKET_NAME = "medicallab-results-buckect"
 
-BUCKET_NAME = "medicallab-results-buckect"  # your GCS bucket name
-GCS_CREDENTIALS_PATH = os.getenv("GCS_CREDENTIALS")
+# Get the relative path from .env
+relative_path = os.getenv("GCS_CREDENTIALS")  
 
+# Resolve the absolute path safely (even on Render)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # backend/routes
+GCS_CREDENTIALS_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", relative_path))
+
+# Initialize GCS client
 credentials = service_account.Credentials.from_service_account_file(GCS_CREDENTIALS_PATH)
 client = storage.Client(credentials=credentials)
 bucket = client.bucket(BUCKET_NAME)
@@ -18,13 +27,15 @@ def upload_file_to_gcs(file: UploadFile, request_id: int, make_public=False) -> 
     filename = f"test-results/{datetime.utcnow().strftime('%Y%m%d%H%M')}_{file.filename}"
     blob = bucket.blob(filename)
 
+    # Upload the file
     blob.upload_from_file(file.file, content_type=file.content_type)
 
+    # Make public if requested
     if make_public:
         blob.make_public()
         return blob.public_url
     else:
-        return filename  
+        return filename
 
 
 def generate_signed_url(blob_path: str, expiration_minutes: int = 30) -> str:
