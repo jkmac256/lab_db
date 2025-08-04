@@ -1,20 +1,20 @@
 # backend/routes/doctor.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime
 from database import get_db
-import models
+import models, models
 from dependencies import require_role
 import schemas
 from typing import List
 from email.message import EmailMessage
-import os
-import smtplib
+import os, smtplib
 from email_sender import send_mailgun_email
 
-router = APIRouter(prefix="/doctor", tags=["Doctor"])
 
+router = APIRouter(prefix="/doctor", tags=["Doctor"])
 
 @router.post("/submit-request/", response_model=schemas.TestRequestOut)
 def submit_request(
@@ -55,7 +55,7 @@ def submit_request(
         technician_id=request.technician_id,
         technician_message=request.technician_message,
         message_for_doctor=None,
-        laboratory_id=current_user.laboratory_id  # 🔒 tie request to lab
+        laboratory_id=current_user.laboratory_id  
     )
     db.add(tr)
     db.commit()
@@ -181,53 +181,73 @@ def get_test_results_for_doctor(
     ]
 
 
-@router.post("/share-result")
-def share_result(
-    payload: schemas.ShareResultRequest,
+@router.post("/result-action/")
+def result_action(
+    action: str = Query(..., description="Action to perform: 'download' or 'share'"),
+    result_id: int = Query(...),
+    recipient_email: str = Query(None),
+    message: str = Query(None),
     current_user=Depends(require_role("doctor")),
     db: Session = Depends(get_db)
 ):
-    test_result = db.query(models.TestResult).filter(
-        models.TestResult.id == payload.result_id,
+    # 🔍 Lookup the result, ensure it's owned by the doctor and in their lab
+    result = db.query(models.TestResult).filter(
+        models.TestResult.id == result_id,
         models.TestResult.doctor_id == current_user.id,
-        models.TestResult.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
+        models.TestResult.laboratory_id == current_user.laboratory_id
     ).first()
 
-    if not test_result:
+    if not result:
         raise HTTPException(status_code=404, detail="Test result not found or not owned")
 
-    file_path = test_result.result_file_path
+    file_path = result.result_file_path
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Result file missing")
+        raise HTTPException(status_code=404, detail="Result file is missing")
 
-    try:
-        msg = EmailMessage()
-        msg["Subject"] = "Medical Lab Test Result"
-        msg["From"] = os.getenv("SMTP_SENDER", "medicallabresults@gmail.com")
-        msg["To"] = payload.recipient_email
-        msg["Reply-To"] = "noreply.medicallabresults@gmail.com"
+    # 📤 If the action is "share", send the result via email
+    if action == "share":
+        if not recipient_email:
+            raise HTTPException(status_code=400, detail="Recipient email is required for sharing")
 
-        msg.set_content(
-            (payload.message or "Here is the test result attached.") +
-            "\n\nPlease do not reply to this email."
+        try:
+            msg = EmailMessage()
+            msg["Subject"] = "Medical Lab Test Result"
+            msg["From"] = os.getenv("SMTP_SENDER", "medicallabresults@gmail.com")
+            msg["To"] = recipient_email
+            msg["Reply-To"] = "noreply.medicallabresults@gmail.com"
+            msg.set_content(
+                (message or "Here is the test result attached.") +
+                "\n\nPlease do not reply to this email."
+            )
+
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+                file_name = os.path.basename(file_path)
+
+            msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
+
+            SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+            SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
+            SMTP_USER = os.getenv("SMTP_USER")
+            SMTP_PASS = os.getenv("SMTP_PASS")
+
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
+                server.login(SMTP_USER, SMTP_PASS)
+                server.send_message(msg)
+
+            return {"detail": f"✅ Result shared successfully to {recipient_email}"}
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+    # 📥 If the action is "download", serve the file
+    elif action == "download":
+        return FileResponse(
+            path=file_path,
+            filename=os.path.basename(file_path),
+            media_type='application/octet-stream'
         )
 
-        with open(file_path, "rb") as f:
-            file_data = f.read()
-            file_name = os.path.basename(file_path)
-
-        msg.add_attachment(file_data, maintype="application", subtype="octet-stream", filename=file_name)
-
-        SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-        SMTP_PORT = int(os.getenv("SMTP_PORT", 465))
-        SMTP_USER = os.getenv("SMTP_USER")
-        SMTP_PASS = os.getenv("SMTP_PASS")
-
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-
-        return {"detail": f"✅ Result shared successfully to {payload.recipient_email}"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    # ❌ Invalid action
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action. Use 'download' or 'share'.")
