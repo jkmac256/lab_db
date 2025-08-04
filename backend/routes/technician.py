@@ -10,6 +10,7 @@ import os, tempfile, shutil, json, tempfile
 from uuid import uuid4
 from typing import Optional, List
 from schemas import TechnicianOut, UploadResultsSchema, TestResultSchema
+from google_cloud import upload_file_to_gcs
 
 GCS_BUCKET_NAME = os.getenv("medicallab-results-bucket")  # ✅ Set this in your env
 
@@ -30,18 +31,14 @@ def get_gcs_client():
 
     return storage.Client()
 
+@router.post("/upload-result/")
+def upload_result(file: UploadFile = File(...), current_user=Depends(...)):
+    try:
+        file_url = upload_file_to_gcs(file, destination_folder="test-results")
+        return {"message": "Uploaded successfully", "file_url": file_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-def upload_file_to_gcs(file: UploadFile, request_id: int) -> str:
-    client = get_gcs_client()
-    bucket = client.bucket(GCS_BUCKET_NAME)
-
-    unique_filename = f"{request_id}_{uuid.uuid4().hex}_{file.filename.replace(' ', '_')}"
-    blob = bucket.blob(f"results/{unique_filename}")
-
-    blob.upload_from_file(file.file, content_type=file.content_type)
-    blob.make_public()  # Optional: remove if using signed URLs
-
-    return blob.public_url
 
 @router.post("/upload_result/")
 def upload_result(
