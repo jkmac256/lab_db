@@ -6,7 +6,7 @@ from database import get_db
 from models import User, TestRequest, TestResult, RequestStatus
 from dependencies import get_current_user, require_role
 from google.cloud import storage
-import os, tempfile, shutil
+import os, tempfile, shutil, json, tempfile
 from uuid import uuid4
 from typing import Optional, List
 from schemas import TechnicianOut, UploadResultsSchema, TestResultSchema
@@ -16,23 +16,20 @@ GCS_BUCKET_NAME = os.getenv("medicallab-results-bucket")  # ✅ Set this in your
 router = APIRouter()
 
 def get_gcs_client():
-    credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-    if not credentials_json:
+    creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    if not creds_json:
         raise RuntimeError("Missing GCS credentials in env var.")
 
-    try:
-        # ✅ Ensure JSON is valid
-        parsed = json.loads(credentials_json)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Invalid JSON credentials: {e}")
+    # Write the JSON to a temp file
+    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.json') as temp_file:
+        temp_file.write(creds_json)
+        temp_file_path = temp_file.name
 
-    # ✅ Write parsed JSON to temp file safely
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp:
-        json.dump(parsed, temp)
-        temp.flush()
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp.name
+    # Point the Google SDK to this temp file
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
 
     return storage.Client()
+
 
 def upload_file_to_gcs(file: UploadFile, request_id: int) -> str:
     client = get_gcs_client()
