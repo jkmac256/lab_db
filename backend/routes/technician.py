@@ -11,18 +11,24 @@ from uuid import uuid4
 from typing import Optional, List
 from schemas import TechnicianOut, UploadResultsSchema, TestResultSchema
 
-router = APIRouter(prefix="/technician", tags=["Technician"])
+GCS_BUCKET_NAME = os.getenv("medicallab-results-bucket")  # ✅ Set this in your env
 
-# Replace with your actual GCS bucket name
-GCS_BUCKET_NAME = " medicallab-results-bucket"
+router = APIRouter()
 
 def get_gcs_client():
     credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
     if not credentials_json:
         raise RuntimeError("Missing GCS credentials in env var.")
 
-    with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp:
-        temp.write(credentials_json)
+    try:
+        # ✅ Ensure JSON is valid
+        parsed = json.loads(credentials_json)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON credentials: {e}")
+
+    # ✅ Write parsed JSON to temp file safely
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as temp:
+        json.dump(parsed, temp)
         temp.flush()
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp.name
 
@@ -48,7 +54,7 @@ def upload_result(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # ✅ Validate test request belongs to technician's lab
+    # ✅ Validate test request ownership
     test_request = db.query(TestRequest).filter(
         TestRequest.id == request_id,
         TestRequest.laboratory_id == current_user.laboratory_id
@@ -63,7 +69,7 @@ def upload_result(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GCS upload failed: {str(e)}")
 
-    # ✅ Create TestResult with GCS file link
+    # ✅ Save result in DB
     new_result = TestResult(
         request_id=request_id,
         technician_id=current_user.id,
@@ -75,7 +81,7 @@ def upload_result(
     )
     db.add(new_result)
 
-    # ✅ Mark test request as completed
+    # ✅ Update test request status
     test_request.status = RequestStatus.completed
 
     db.commit()
@@ -86,7 +92,6 @@ def upload_result(
         "result_id": new_result.id,
         "file_url": public_url
     }
-
 
 @router.get("/pending-requests/")
 def get_pending_requests(
