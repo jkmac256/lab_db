@@ -4,7 +4,7 @@ from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User, TestRequest, TestResult, RequestStatus
-from dependencies import get_current_user
+from dependencies import get_current_user, require_role
 from google.cloud import storage
 import os, tempfile, uuid
 from typing import Optional
@@ -12,7 +12,7 @@ from typing import Optional
 router = APIRouter(prefix="/technician", tags=["Technician"])
 
 # Replace with your actual GCS bucket name
-GCS_BUCKET_NAME = "your-gcs-bucket-name"
+GCS_BUCKET_NAME = " medicallab-results-bucket"
 
 def get_gcs_client():
     credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
