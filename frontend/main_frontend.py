@@ -137,6 +137,7 @@ def doctor_dashboard():
                 }
                 res = requests.post(f"{API_URL}/doctor/submit-request/", headers=auth_header(), json=payload)
                 st.success("✅ Submitted!") if res.status_code == 200 else st.error(f"❌ Error: {res.text}")
+                st.rerun()
 
 
     elif page == "📋 My Requests":
@@ -189,8 +190,10 @@ def doctor_dashboard():
                                     )
                                     if res.status_code == 200:
                                         st.success(f"✅ Shared with {recipient_email}")
+                                        st.rerun()
                                     else:
                                         st.error(f"❌ Failed to share: {res.text}")
+                                        st.rerun()
 
                                      #RESULTS PAGE#
     elif page == "📈 My Results":
@@ -219,6 +222,7 @@ def doctor_dashboard():
                             )
                         except FileNotFoundError:
                             st.error("❌ Result file not found on the server.")
+                            st.rerun()
 
                     st.markdown("### 📤 Share Result")
                     recipient_email = st.text_input("Recipient Email", key=f"email_{res['id']}")
@@ -226,6 +230,7 @@ def doctor_dashboard():
                     if st.button("Send", key=f"send_{res['id']}"):
                         if not recipient_email:
                             st.error("Please enter a recipient email.")
+                            st.rerun()
                         else:
                             payload = {
                                 "result_id": res["id"],
@@ -239,8 +244,10 @@ def doctor_dashboard():
                             )
                             if share_resp.status_code == 200:
                                 st.success(f"✅ Shared with {recipient_email}")
+                                st.rerun()
                             else:
                                 st.error(f"❌ Failed to share: {share_resp.text}")
+                                st.rerun()
 
                                        #EQUIPMENT PAGE#
     elif page == "🔍 Equipment":
@@ -286,6 +293,7 @@ def technician_dashboard():
         doctor_id = selected_request.get("doctor", {}).get("id") or selected_request.get("doctor_id")
         if not doctor_id:
             st.error("❌ Doctor info missing.")
+            st.rerun()
             return
 
         result_text = st.text_area("📝 Result Details")
@@ -293,6 +301,7 @@ def technician_dashboard():
         if st.button("🚀 Submit Result"):
             if not result_text or not result_file:
                 st.warning("⚠️ Fill all fields.")
+                st.rerun()
             else:
                 res = upload_result(
                     token=st.session_state.token,
@@ -302,6 +311,7 @@ def technician_dashboard():
                     result_file=result_file
                 )
                 st.success("✅ Uploaded!") if res.status_code == 200 else st.error(f"❌ Upload failed: {res.text}")
+                st.rerun()
 
 
                                            #Equipment page#
@@ -336,10 +346,10 @@ def technician_dashboard():
                 res = add_equipment(st.session_state.token, payload)
                 if res.status_code == 200:
                     st.success("✅ Added")
-                    #st.rerun()
+                    st.rerun()
                 else:
                     st.error(f"❌ Error: {res.text}")
-                    #st.rerun()
+                    st.rerun()
 
 
 # ------------------ ADMIN DASHBOARD ------------------
@@ -385,6 +395,7 @@ def admin_dashboard():
         user_details_resp = requests.get(f"{API_URL}/users/{selected_user_id}", headers=headers)
         if user_details_resp.status_code != 200:
             st.error("❌ Failed to load user details.")
+            st.rerun()
             return
 
         user_details = user_details_resp.json()
@@ -413,6 +424,7 @@ def admin_dashboard():
                     st.rerun()
                 else:
                     st.error(f"❌ Failed to update user: {update_resp.text}")
+                    st.rerun()
 
         # === Show Extra Info Based on Role ===
         role = user_details.get("role", "").upper()
