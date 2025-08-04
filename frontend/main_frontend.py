@@ -293,7 +293,7 @@ def technician_dashboard():
         doctor_id = selected_request.get("doctor", {}).get("id") or selected_request.get("doctor_id")
         if not doctor_id:
             st.error("❌ Doctor info missing.")
-            st.rerun()
+            #st.rerun()
             return
 
         result_text = st.text_area("📝 Result Details")
@@ -301,7 +301,7 @@ def technician_dashboard():
         if st.button("🚀 Submit Result"):
             if not result_text or not result_file:
                 st.warning("⚠️ Fill all fields.")
-                st.rerun()
+                #st.rerun()
             else:
                 res = upload_result(
                     token=st.session_state.token,
@@ -311,7 +311,7 @@ def technician_dashboard():
                     result_file=result_file
                 )
                 st.success("✅ Uploaded!") if res.status_code == 200 else st.error(f"❌ Upload failed: {res.text}")
-                st.rerun()
+                #st.rerun()
 
 
                                            #Equipment page#
