@@ -13,7 +13,7 @@ from schemas import TechnicianOut, UploadResultsSchema, TestResultSchema
 
 GCS_BUCKET_NAME = os.getenv("medicallab-results-bucket")  # ✅ Set this in your env
 
-router = APIRouter()
+router = APIRouter(prefix="/technician", tags=["Technician"])
 
 def get_gcs_client():
     creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
