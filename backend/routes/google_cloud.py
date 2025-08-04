@@ -11,18 +11,17 @@ credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_
 client = storage.Client(credentials=credentials)
 bucket = client.bucket(BUCKET_NAME)
 
-def upload_file_to_gcs(file: UploadFile, destination_folder: str) -> str:
-    try:
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        filename = f"{destination_folder}/{timestamp}_{file.filename}"
+def upload_file_to_gcs(file: UploadFile, request_id: int, make_public=False) -> str:
+    filename = f"test-results/{datetime.utcnow().strftime('%Y%m%d%H%M')}_{file.filename}"
+    blob = bucket.blob(filename)
 
-        blob = bucket.blob(filename)
-        blob.upload_from_file(file.file, content_type=file.content_type)
+    blob.upload_from_file(file.file, content_type=file.content_type)
 
-        # Don't make it public
-        return f"gs://{BUCKET_NAME}/{filename}"
-    except Exception as e:
-        raise Exception(f"GCS upload failed: {e}")
+    if make_public:
+        blob.make_public()
+        return blob.public_url
+    else:
+        return filename  
 
 
 def generate_signed_url(blob_path: str, expiration_minutes: int = 30) -> str:
