@@ -1,29 +1,89 @@
 # backend/routes/technician.py
 
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from database import get_db
 from models import User, TestRequest, TestResult, RequestStatus
-from dependencies import require_role, get_current_user
-from schemas import UploadResultsSchema, TestResultSchema
-import os, shutil
-from uuid import uuid4
-from typing import List
-from schemas import TechnicianOut
+from dependencies import get_current_user
+from google.cloud import storage
+import os, tempfile, uuid
+from typing import Optional
 
 router = APIRouter(prefix="/technician", tags=["Technician"])
-UPLOAD_DIR = "uploaded_results"
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Replace with your actual GCS bucket name
+GCS_BUCKET_NAME = "your-gcs-bucket-name"
 
-def save_file(upload_file):
-    filename = f"{uuid4().hex}_{upload_file.filename}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+def get_gcs_client():
+    credentials_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    if not credentials_json:
+        raise RuntimeError("Missing GCS credentials in env var.")
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(upload_file.file.read())
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp:
+        temp.write(credentials_json)
+        temp.flush()
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp.name
 
-    return file_path
+    return storage.Client()
+
+def upload_file_to_gcs(file: UploadFile, request_id: int) -> str:
+    client = get_gcs_client()
+    bucket = client.bucket(GCS_BUCKET_NAME)
+
+    unique_filename = f"{request_id}_{uuid.uuid4().hex}_{file.filename.replace(' ', '_')}"
+    blob = bucket.blob(f"results/{unique_filename}")
+
+    blob.upload_from_file(file.file, content_type=file.content_type)
+    blob.make_public()  # Optional: remove if using signed URLs
+
+    return blob.public_url
+
+@router.post("/upload_result/")
+def upload_result(
+    request_id: int = Form(...),
+    details: str = Form(...),
+    result_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # ✅ Validate test request belongs to technician's lab
+    test_request = db.query(TestRequest).filter(
+        TestRequest.id == request_id,
+        TestRequest.laboratory_id == current_user.laboratory_id
+    ).first()
+
+    if not test_request:
+        raise HTTPException(status_code=404, detail="Test request not found or not in your lab")
+
+    # ✅ Upload file to GCS
+    try:
+        public_url = upload_file_to_gcs(result_file, request_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"GCS upload failed: {str(e)}")
+
+    # ✅ Create TestResult with GCS file link
+    new_result = TestResult(
+        request_id=request_id,
+        technician_id=current_user.id,
+        doctor_id=test_request.doctor_id,
+        result_details=details,
+        result_file_path=public_url,
+        seen=False,
+        laboratory_id=current_user.laboratory_id
+    )
+    db.add(new_result)
+
+    # ✅ Mark test request as completed
+    test_request.status = RequestStatus.completed
+
+    db.commit()
+    db.refresh(new_result)
+
+    return {
+        "message": "Result uploaded and request marked as completed",
+        "result_id": new_result.id,
+        "file_url": public_url
+    }
 
 
 @router.get("/pending-requests/")
@@ -55,55 +115,6 @@ def get_pending_requests(
         }
         for r in requests
     ]
-
-
-@router.post("/upload_result/")
-def upload_result(
-    request_id: int = Form(...),
-    details: str = Form(...),
-    result_file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    # Fetch and validate test request with lab scope
-    test_request = db.query(TestRequest).filter(
-        TestRequest.id == request_id,
-        TestRequest.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped
-    ).first()
-    if not test_request:
-        raise HTTPException(status_code=404, detail="Test request not found or not in your lab")
-
-    # Save uploaded file
-    upload_folder = os.path.abspath(UPLOAD_DIR)
-    os.makedirs(upload_folder, exist_ok=True)
-    filename = result_file.filename.replace(" ", "_")
-    file_path = os.path.join(upload_folder, filename)
-
-    with open(file_path, "wb") as f:
-        shutil.copyfileobj(result_file.file, f)
-
-    # Create TestResult tied to lab
-    new_result = TestResult(
-        request_id=request_id,
-        technician_id=current_user.id,
-        doctor_id=test_request.doctor_id,
-        result_details=details,
-        result_file_path=file_path,
-        seen=False,
-        laboratory_id=current_user.laboratory_id  # 🔒 lab tied
-    )
-    db.add(new_result)
-
-    # Update test request status to completed
-    test_request.status = RequestStatus.completed
-
-    db.commit()
-    db.refresh(new_result)
-
-    return {
-        "message": "Result uploaded and request marked as completed",
-        "result_id": new_result.id
-    }
 
 
 @router.get("/test-request/{request_id}/messages")
