@@ -280,29 +280,51 @@ def technician_dashboard():
                     **⚙️ Equipment**: {req.get('equipment_name', 'Unknown')}  
                     """)
 
-                                          # Upload Result page#
+                                # 📤 Upload Result page
     elif page == "📤 Upload Result":
         st.subheader("📤 Upload Test Result")
         requests_data = get_pending_requests(st.session_state.token)
         if not requests_data:
             st.info("📭 No pending requests.")
-            return
+            st.stop()
+    
+        # Map requests to a display label
         label_map = {f"{r['id']} - {r['patient_name']} - {r['test_type']}": r for r in requests_data}
         selected_label = st.selectbox("Select Request", list(label_map.keys()))
         selected_request = label_map[selected_label]
-
+    
         doctor_id = selected_request.get("doctor", {}).get("id") or selected_request.get("doctor_id")
         if not doctor_id:
             st.error("❌ Doctor info missing.")
-            #st.rerun()
-            return
-
-        result_text = st.text_area("📝 Result Details")
-        result_file = st.file_uploader("📁 Upload File", type=["pdf", "txt", "docx"])
+            st.stop()
+    
+        # --- Mode Selection ---
+        mode = st.radio("Choose Input Method:", ["Manual Upload", "Fetch from LIS"])
+    
+        result_text = ""
+        result_file = None
+    
+        if mode == "Manual Upload":
+            result_text = st.text_area("📝 Result Details")
+            result_file = st.file_uploader("📁 Upload File", type=["pdf", "txt", "docx"])
+    
+        elif mode == "Fetch from LIS":
+            if st.button("🔄 Fetch from LIS"):
+                res = fetch_from_lis(
+                    token=st.session_state.token,
+                    request_id=selected_request["id"]
+                )
+                if res.status_code == 200:
+                    lis_data = res.json()
+                    st.success("✅ Data fetched from LIS")
+                    result_text = st.text_area("📝 Result Details (Pre-filled, editable)", value=lis_data.get("result_text", ""))
+                else:
+                    st.error(f"❌ Failed to fetch from LIS: {res.text}")
+    
+        # --- Submit Section ---
         if st.button("🚀 Submit Result"):
-            if not result_text or not result_file:
-                st.warning("⚠️ Fill all fields.")
-                #st.rerun()
+            if not result_text:
+                st.warning("⚠️ Result text is required.")
             else:
                 res = upload_result(
                     token=st.session_state.token,
@@ -312,7 +334,7 @@ def technician_dashboard():
                     result_file=result_file
                 )
                 st.success("✅ Uploaded!") if res.status_code == 200 else st.error(f"❌ Upload failed: {res.text}")
-                #st.rerun()
+
 
 
                                            #Equipment page#
