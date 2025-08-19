@@ -42,13 +42,34 @@ st.set_page_config(page_title="📊 Medical Lab System", layout="centered", page
 def load_custom_css():
     st.markdown("""
     <style>
-    .stApp { background-color: #001f3f; color: #ffffff; }
-    h1, h2, h3, h4, h5, h6 { color: #ffffff; }
-    section[data-testid="stSidebar"] { background-color: #001a33; color: #ffffff; }
-    .css-1d391kg { background-color: #002b5c !important; color: #ffffff !important; border-radius: 8px; }
+    /* Main app background */
+    .stApp { 
+        background-color: #001f3f; 
+        color: #ffffff !important; 
+    }
+
+    /* Headings */
+    h1, h2, h3, h4, h5, h6, p, span, div, label { 
+        color: #ffffff !important; 
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] { 
+        background-color: #001a33; 
+        color: #ffffff !important; 
+    }
+
+    /* Cards / containers */
+    .css-1d391kg { 
+        background-color: #002b5c !important; 
+        color: #ffffff !important; 
+        border-radius: 8px; 
+    }
+
+    /* Buttons */
     .stButton button {
         background-color: #0074D9 !important;
-        color: white !important;
+        color: #ffffff !important;
         border: none;
         border-radius: 5px;
         padding: 0.5em 1.5em;
@@ -56,17 +77,18 @@ def load_custom_css():
     .stButton button:hover {
         background-color: #005fa3 !important;
     }
+
+    /* Download buttons */
     .stDownloadButton button {
         background-color: #2ECC40 !important;
-        color: white !important;
+        color: #ffffff !important;
     }
     .stDownloadButton button:hover {
         background-color: #27ae60 !important;
     }
     </style>
-            """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-load_custom_css()
 
 if "token" not in st.session_state: st.session_state.token = None
 if "role" not in st.session_state: st.session_state.role = None
