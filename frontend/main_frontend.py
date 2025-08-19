@@ -55,9 +55,18 @@ def load_custom_css():
     /* Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #001a33;
+        font-size: 18px !important; /* Increase default font size */
     }
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
+    }
+
+    /* Sidebar headers */
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        font-size: 22px !important;
+        font-weight: bold;
     }
 
     /* Buttons */
@@ -66,7 +75,8 @@ def load_custom_css():
         color: #ffffff !important;
         border: none;
         border-radius: 5px;
-        padding: 0.5em 1.5em;
+        padding: 0.6em 1.6em;
+        font-size: 16px !important;
     }
     .stButton button:hover {
         background-color: #005fa3 !important;
@@ -76,6 +86,7 @@ def load_custom_css():
     .stDownloadButton button {
         background-color: #2ECC40 !important;
         color: #ffffff !important;
+        font-size: 16px !important;
     }
     .stDownloadButton button:hover {
         background-color: #27ae60 !important;
@@ -84,12 +95,14 @@ def load_custom_css():
     /* Tables / Dataframes */
     .stDataFrame, .stTable, .stMarkdown, .stMarkdown p {
         color: #ffffff !important;
+        font-size: 16px !important;
     }
 
     /* Input fields (text boxes, dropdowns) */
     .stTextInput input, .stSelectbox div, .stTextArea textarea {
         color: #ffffff !important;
         background-color: #002b5c !important;
+        font-size: 16px !important;
     }
     </style>
     """, unsafe_allow_html=True)
