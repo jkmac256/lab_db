@@ -48,7 +48,7 @@ def load_custom_css():
     .css-1d391kg { background-color: #002b5c !important; color: #ffffff !important; border-radius: 8px; }
     .stButton button {
         background-color: #0074D9 !important;
-        color: black !important;
+        color: white !important;
         border: none;
         border-radius: 5px;
         padding: 0.5em 1.5em;
