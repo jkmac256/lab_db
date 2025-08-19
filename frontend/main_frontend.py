@@ -42,28 +42,22 @@ st.set_page_config(page_title="📊 Medical Lab System", layout="centered", page
 def load_custom_css():
     st.markdown("""
     <style>
-    /* Main app background */
-    .stApp { 
-        background-color: #001f3f; 
-        color: #ffffff !important; 
+    /* App background */
+    .stApp {
+        background-color: #001f3f;
     }
 
-    /* Headings */
+    /* Force all text to white */
     h1, h2, h3, h4, h5, h6, p, span, div, label { 
         color: #ffffff !important; 
     }
 
     /* Sidebar */
-    section[data-testid="stSidebar"] { 
-        background-color: #001a33; 
-        color: #ffffff !important; 
+    section[data-testid="stSidebar"] {
+        background-color: #001a33;
     }
-
-    /* Cards / containers */
-    .css-1d391kg { 
-        background-color: #002b5c !important; 
-        color: #ffffff !important; 
-        border-radius: 8px; 
+    section[data-testid="stSidebar"] * {
+        color: #ffffff !important;
     }
 
     /* Buttons */
@@ -78,13 +72,24 @@ def load_custom_css():
         background-color: #005fa3 !important;
     }
 
-    /* Download buttons */
+    /* Download Button */
     .stDownloadButton button {
         background-color: #2ECC40 !important;
         color: #ffffff !important;
     }
     .stDownloadButton button:hover {
         background-color: #27ae60 !important;
+    }
+
+    /* Tables / Dataframes */
+    .stDataFrame, .stTable, .stMarkdown, .stMarkdown p {
+        color: #ffffff !important;
+    }
+
+    /* Input fields (text boxes, dropdowns) */
+    .stTextInput input, .stSelectbox div, .stTextArea textarea {
+        color: #ffffff !important;
+        background-color: #002b5c !important;
     }
     </style>
     """, unsafe_allow_html=True)
