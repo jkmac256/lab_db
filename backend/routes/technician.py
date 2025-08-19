@@ -204,3 +204,18 @@ def get_all_technicians(
         User.laboratory_id == current_user.laboratory_id  # 🔒 lab scoped list
     ).all()
     return technicians
+
+
+
+@router.post("/lis/results")
+async def receive_results_from_DI(payload: dict):
+    request_id = payload.get("request_id")
+    result_text = payload.get("result_text")
+    # mark request as completed in DB
+    request = db.query(TestRequest).filter(TestRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+    request.result_text = result_text
+    request.status = "completed"
+    db.commit()
+    return {"message": "Result uploaded from DI"}
